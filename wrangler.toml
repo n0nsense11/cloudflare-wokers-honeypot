@@ -1,0 +1,21 @@
+name = "honeypot-worker"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+[observability]
+logs.enabled = true
+logs.persist = true
+
+[triggers]
+crons = ["*/30 * * * *"]
+
+[[kv_namespaces]]
+binding = "HONEYPOT_KV"
+id = "<KV_NAMESPACE_ID>"
+
+[vars]
+ZONE_ID = "<ZONE_ID>"
+WAF_RULESET_ID = "<WAF_RULESET_ID>"
+WAF_RULE_ID = "<WAF_RULE_ID>"
+SUBNET_V4 = "24"
+SUBNET_V6 = "64"
