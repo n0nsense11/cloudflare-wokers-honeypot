@@ -29,36 +29,45 @@ function ipv4ToSubnet(ip, prefix) {
 }
 
 function ipv6ToSubnet(ip, prefix) {
-  const parts = ip.replace(/::/g, ":" + "0".repeat(9 - ip.split(":").length)).split(":");
+  const halves = ip.split("::");
+  const left = halves[0].split(":");
+  const right = halves[1] ? halves[1].split(":") : [];
+  const missing = 8 - left.length - right.length;
+  const parts = [...left, ...Array(missing).fill("0"), ...right];
+
   let num = 0n;
   for (const part of parts) {
     num = (num << 16n) | BigInt(parseInt(part || "0", 16));
   }
+
   const mask = (1n << 128n) - (1n << (128n - BigInt(prefix)));
   const result = num & mask;
-  const segments = [];
+
+  const hex = [];
+  for (let i = 7; i >= 0; i--) {
+    hex.push(((result >> BigInt(i * 16)) & 0xffffn).toString(16));
+  }
+
+  let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
   for (let i = 0; i < 8; i++) {
-    segments.unshift((result >> BigInt(i * 16)) & 0xffffn);
-  }
-  const firstNonZero = segments.findIndex((s) => s !== 0n);
-  let formatted;
-  if (firstNonZero === -1) {
-    formatted = "::";
-  } else {
-    const leading = segments.slice(firstNonZero);
-    const trailing = [];
-    for (let i = leading.length - 1; i >= 0; i--) {
-      if (leading[i] === 0n) trailing.push("");
-      else break;
+    if (hex[i] === "0") {
+      if (curStart === -1) curStart = i;
+      curLen++;
+      if (curLen > bestLen) { bestStart = curStart; bestLen = curLen; }
+    } else {
+      curStart = -1; curLen = 0;
     }
-    const middle = leading.slice(0, leading.length - trailing.length);
-    formatted = segments.slice(0, firstNonZero).map((s) => s.toString(16)).join(":");
-    if (middle.length > 0) formatted += ":" + middle.map((s) => s.toString(16)).join(":");
-    if (trailing.length > 0) formatted += "::" + trailing.map((s) => s.toString(16)).join(":");
   }
-  if (!formatted.includes("::") && formatted.split(":").length < 8) {
-    formatted = segments.map((s) => s.toString(16)).join(":");
+
+  let formatted;
+  if (bestLen >= 2) {
+    const l = hex.slice(0, bestStart).join(":");
+    const r = hex.slice(bestStart + bestLen).join(":");
+    formatted = (l || "") + "::" + (r || "");
+  } else {
+    formatted = hex.join(":");
   }
+
   return formatted + "/" + prefix;
 }
 
